@@ -717,14 +717,15 @@ while true; do
             for options in "${selected_options[@]}"; do
                 mkdir -p "${docker_conf_dir}/appdata/${options}"
                 get_app_compose "${options}"
-                [[ "${options}" == 'plex' ]] && plex_installed="yes" 
+                [[ "${options}" == 'plex' ]] && plex_installed="yes"
+		[[ "${options}" == 'jellyfin' ]] && jellyfin_installed="yes" 
                 [[ "${options}" == 'qbittorrent' ]] && qbit_installed="yes" && mkdir -p "${docker_data_dir}"/torrents/{tv,movies}
                 [[ "${options}" == 'radarr' ]] && mkdir -p "${docker_data_dir}/media/movies"
                 [[ "${options}" == 'sonarr' ]] && mkdir -p "${docker_data_dir}/media/tv"
                 [[ "${options}" =~ ^(sabnzbd|nzbget)$ ]] && mkdir -p "${docker_data_dir}"/usenet/complete/{tv,movies}
             done
 
-            if [[ "${plex_installed}" == "yes" ]]; then
+            if [[ "${plex_installed}" == "yes" || "${jellyfin_installed}" == "yes" ]]; then
                 #check for quick sync
                 if [[ -d "$qsv" ]]; then
                     ### Do nothing if $qsv exists.
@@ -753,18 +754,8 @@ while true; do
                                         sed -r 's|#   devices:|    devices:|g' -i "${docker_conf_dir}/appdata/docker-compose.yml"
                                         sed -r 's|#     - /dev/net/tun:/dev/net/tun|      - /dev/net/tun:/dev/net/tun|g' -i "${docker_conf_dir}/appdata/docker-compose.yml"
                                         if [[ -f "${docker_conf_dir}/appdata/qbittorrent/wireguard/wg0.conf" ]]; then
-                                            if sed -r 's|AllowedIPs = (.*)|AllowedIPs = 0.0.0.0/1,128.0.0.0/1|g' -i "${docker_conf_dir}/appdata/qbittorrent/wireguard/wg0.conf" 2> /dev/null; then
+                                            if mv "${docker_conf_dir}/appdata/qbittorrent/wireguard/wg0.conf" "${docker_conf_dir}/appdata/qbittorrent/wireguard/wg0-fix.conf" 2> /dev/null; then
                                                 printf '\n%b\n' " ${utick} wg0.conf found and fixed."
-                                            fi
-
-                                            if curl -sL https://raw.githubusercontent.com/TRaSH-/Guides-Synology-Templates/main/script/PreUp.sh -o "${docker_conf_dir}/appdata/qbittorrent/wireguard/PreUp.sh"; then
-                                                printf '\n%b\n' " ${utick} PreUp.sh downloaded to ${docker_conf_dir}/appdata/qbittorrent/wireguard/PreUp.sh"
-                                            fi
-
-                                            if ! grep -q 'PreUp = bash /config/wireguard/PreUp.sh' "${docker_conf_dir}/appdata/qbittorrent/wireguard/wg0.conf"; then
-                                                if sed '/^\[Interface\]/!b;:a;n;/./ba;iPreUp = bash /config/wireguard/PreUp.sh' -i "${docker_conf_dir}/appdata/qbittorrent/wireguard/wg0.conf" 2> /dev/null; then
-                                                    printf '\n%b\n' " ${utick} PreUp = bash /config/wireguard/PreUp.sh added to wg0.conf"
-                                                fi
                                             fi
                                         else
                                             printf '\n%b\n\n ' " ${ucross} wg0.conf not found. Place file with filename ${clc}wg0.conf${cend} and answer yes when ready."
